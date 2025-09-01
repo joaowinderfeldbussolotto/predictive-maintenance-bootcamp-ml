@@ -47,7 +47,6 @@ predictive-maintenance-bootcamp-ml/
 │   └── requirements.txt         # Dependências
 ├── 🐳 docker-compose.yml        # Orquestração de containers
 ├── 📝 logs/                     # Logs da aplicação
-├── 🚀 start_api.sh              # Script de inicialização
 └── 📖 README.md                 # Documentação
 ```
 
@@ -82,9 +81,8 @@ predictive-maintenance-bootcamp-ml/
 git clone https://github.com/joaowinderfeldbussolotto/predictive-maintenance-bootcamp-ml.git
 cd predictive-maintenance-bootcamp-ml
 
-# Execute o script de inicialização
-chmod +x start_api.sh
-./start_api.sh
+# Suba todos os serviços com Docker Compose
+docker-compose up -d
 ```
 
 ### 2. Instalação Manual
