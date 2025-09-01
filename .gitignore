@@ -205,3 +205,30 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ML and Data Science specific
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+data/raw/
+data/processed/
+models/saved/
+experiments/
+mlruns/
+
+# API specific
+api/logs/
+api/saved_models/*.joblib
+api/saved_models/*.pkl
+
+# Temporary files
+*.tmp
+*.temp
+
+# Security
+*.key
+*.pem
+secrets/
+
+*.sh
