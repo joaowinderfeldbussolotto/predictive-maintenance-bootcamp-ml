@@ -35,34 +35,35 @@ async def predict_binary_classification(measurement: Measurement, request: Reque
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
-@router.post("/predict")
+@router.post("/predict", response_model=Prediction)
 async def predict(measurement: Measurement, request: Request):
     """
-    Endpoint multi-label em construção.
-    Por enquanto, use o endpoint /binary-classification para predições reais.
+    Realiza a predição de falha de máquina e tipos de falha (multi-label).
     """
-    return {
-        "message": "Endpoint em construção",
-        "detail": "Este endpoint está sendo desenvolvido. Use /predictions/binary-classification para predições funcionais.",
-        "available_endpoint": "/predictions/binary-classification",
-        "status": "under_construction"
-    }
+    ms = getattr(request.app.state, "model_service", None)
+    if not ms or not ms.is_loaded:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        result = await ms.predict_one(measurement)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 @router.post("/predict/batch")
 async def predict_batch(payload: BatchMeasurement, request: Request):
     """
     Endpoint batch multi-label em construção.
-    Por enquanto, use o endpoint /binary-classification para predições reais.
     """
     return {
         "message": "Endpoint batch em construção",
-        "detail": "Este endpoint está sendo desenvolvido. Use /predictions/binary-classification para predições funcionais.",
-        "available_endpoint": "/predictions/binary-classification",
+        "detail": "Este endpoint está sendo desenvolvido.",
         "status": "under_construction",
         "received_measurements": len(payload.measurements)
     }
-
 
 @router.get("/example")
 async def example_payload():

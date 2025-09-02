@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import sys
 from typing import List, Dict, Optional
 import asyncio
+import pickle
 from datetime import datetime
 import joblib
 import pandas as pd
 import os
 from loguru import logger
 
+from app.utils import custom_transformers
 from app.schemas.prediction import (
     Measurement,
     BatchMeasurement,
@@ -19,6 +22,8 @@ from app.schemas.prediction import (
 from app.schemas.common import FailureType, RiskLevel
 from app.schemas.model import FeatureSpec
 from app.utils.config import Settings
+from app.utils.custom_transformers import DropColumns, OneHotEncoding, ScaleFeatures
+sys.modules['__main__'] = custom_transformers  # ajuste '__main__' para o módulo que aparece no erro
 
 
 class ModelService:
@@ -32,22 +37,32 @@ class ModelService:
         # Placeholder for actual ML artifacts (pipeline, encoder, model, etc.)
         self._model = None
         self._binary_model = None
+        self._multilabel_model = None
 
     async def load_models(self):
         """Load the binary classification pipeline from disk"""
         try:
             # Load binary classification pipeline
-            model_path = os.path.join(self.settings.MODEL_DIR, "xgboost_undersample_pipeline.pkl")
-            logger.info(f"Loading binary classification model from: {model_path}")
+            binary_model_path = os.path.join(self.settings.MODEL_DIR, "xgboost_undersample_pipeline.pkl")
+            logger.info(f"Loading binary classification model from: {binary_model_path}")
             
-            if os.path.exists(model_path):
-                self._binary_model = joblib.load(model_path)
-
+            if os.path.exists(binary_model_path):
+                self._binary_model = joblib.load(binary_model_path)
                 logger.info("Binary classification pipeline loaded successfully")
             else:
-                logger.warning(f"Model file not found: {model_path}")
-                # Keep placeholder for development
+                logger.warning(f"Model file not found: {binary_model_path}")
                 self._binary_model = None
+
+            # Load multilabel classification pipeline
+            multilabel_model_path = os.path.join(self.settings.MODEL_DIR, "pipeline_multilabel.pkl")
+            logger.info(f"Loading multilabel classification model from: {multilabel_model_path}")
+
+            if os.path.exists(multilabel_model_path):
+                self._multilabel_model = joblib.load(multilabel_model_path)
+                logger.info("Multilabel classification pipeline loaded successfully")
+            else:
+                logger.warning(f"Model file not found: {multilabel_model_path}")
+                self._multilabel_model = None
                 
             self.is_loaded = True
             self.trained_on = datetime.utcnow().strftime("%Y-%m-%d")
@@ -92,33 +107,45 @@ class ModelService:
         )
 
     async def predict_one(self, m: Measurement) -> Prediction:
-        # Simple heuristic placeholder; replace with model.predict_proba
-        # Normalize features roughly and compute a toy score
-        score = 0.0
-        score += (m.temperatura_processo - m.temperatura_ar) / 100.0
-        score += (m.torque / 100.0)
-        score += (m.desgaste_da_ferramenta / 300.0)
-        score = max(0.0, min(1.0, score))
+        """Predict machine failure using multilabel classification model"""
+        if not self.is_loaded or self._multilabel_model is None:
+            raise ValueError("Multilabel classification model not loaded")
 
-        # Distribute per-failure-type probabilities (toy)
-        probs: Dict[FailureType, float] = {
-            FailureType.FDF: score * 0.30,
-            FailureType.FDC: score * 0.20,
-            FailureType.FP: score * 0.20,
-            FailureType.FTE: score * 0.20,
-            FailureType.FA: max(0.0, 1.0 - score) * 0.10,
-        }
+        # Prepare data for the model
+        data = pd.DataFrame({
+            'id': [m.id],
+            'id_produto': [m.id_produto],
+            'tipo': [m.tipo],
+            'temperatura_ar': [m.temperatura_ar],
+            'temperatura_processo': [m.temperatura_processo],
+            'umidade_relativa': [m.umidade_relativa],
+            'velocidade_rotacional': [m.velocidade_rotacional],
+            'torque': [m.torque],
+            'desgaste_da_ferramenta': [m.desgaste_da_ferramenta],
+        })
 
-        most_likely = max(probs, key=probs.get)
+        # Get prediction probabilities
+        probabilities_list = self._multilabel_model.predict_proba(data)
 
-        # Risk level
+        failure_types = [FailureType.FDF, FailureType.FDC, FailureType.FP, FailureType.FTE, FailureType.FA]
+        
+        probs: Dict[FailureType, float] = {}
+        for i, failure_type in enumerate(failure_types):
+            probs[failure_type] = probabilities_list[i][0, 1]
+
+        machine_failure_probability = max(probs.values())
+        will_fail = bool(machine_failure_probability >= self.threshold)
+        most_likely = max(probs, key=probs.get) if will_fail else None
+
         risk = (
-            RiskLevel.high if score >= 0.7 else RiskLevel.medium if score >= 0.4 else RiskLevel.low
+            RiskLevel.high if machine_failure_probability >= 0.7 
+            else RiskLevel.medium if machine_failure_probability >= 0.4 
+            else RiskLevel.low
         )
 
         return Prediction(
-            will_fail=bool(score >= self.threshold),
-            machine_failure_probability=score,
+            will_fail=will_fail,
+            machine_failure_probability=machine_failure_probability,
             failure_type_probs=probs,
             most_likely_failure=most_likely,
             risk_level=risk,

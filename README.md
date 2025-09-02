@@ -15,11 +15,12 @@ Este projeto implementa um sistema completo de manutenção preditiva usando Mac
 Desenvolver um sistema inteligente de manutenção preditiva que:
 
 - ✅ **Prevê falhas binárias** (vai falhar/não vai falhar) com alta precisão
-- 🚧 **Identifica tipos de falhas** (em desenvolvimento - FDF, FDC, FP, FTE, FA)
+- ✅ **Identifica tipos de falhas** (classificação multilabel - FDF, FDC, FP, FTE, FA)
 - ✅ **Calcula probabilidades** e níveis de risco
 - ✅ **Interface web interativa** com Streamlit
 - ✅ **API REST completa** para integração em sistemas existentes
 - ✅ **Containerização** com Docker para deploy fácil
+- 🚧 **Processamento em lote** (batch prediction - em desenvolvimento)
 
 ## 🏗️ Arquitetura do Sistema
 
@@ -34,8 +35,8 @@ predictive-maintenance-bootcamp-ml/
 │   │   ├── schemas/             # Modelos Pydantic (validation)
 │   │   └── utils/               # Configuração e utilitários
 │   ├── ml_models/               # Modelos treinados (.pkl, .joblib)
-│   │   ├── binary_classification.pkl    # ✅ Modelo binário (funcional)
-│   │   ├── pipeline_multilabel.pkl      # 🚧 Modelo multilabel
+│   │   ├── binary_classification.pkl         # ✅ Modelo binário (funcional)
+│   │   ├── pipeline_multilabel.pkl           # ✅ Modelo multilabel (funcional)
 │   │   ├── decision_tree_tuned_model.joblib
 │   │   ├── preprocessor.joblib
 │   │   └── xgboost_undersample_pipeline.pkl
@@ -155,22 +156,74 @@ print(f"Probabilidade de Falha: {result['probabilidade_falha']:.2%}")
 }
 ```
 
-### 2. Classificação Multi-label (🚧 Em Desenvolvimento)
+### 2. Classificação Multi-label (✅ Funcional)
 
 ```python
-# Multi-label classification (em construção)
+# Predição multi-label (tipos específicos de falha)
 response = requests.post(
     "http://localhost:8000/predictions/predict", 
     json=data
 )
-# Retorna: "Endpoint em construção. Use /binary-classification"
+result = response.json()
+
+print(f"Vai Falhar: {result['will_fail']}")
+print(f"Probabilidade Geral: {result['machine_failure_probability']:.2%}")
+print(f"Nível de Risco: {result['risk_level']}")
+print(f"Tipo Mais Provável: {result['most_likely_failure']}")
+
+# Probabilidades por tipo de falha
+for failure_type, prob in result['failure_type_probs'].items():
+    print(f"{failure_type}: {prob:.2%}")
+```
+
+**Resposta:**
+```json
+{
+    "will_fail": true,
+    "machine_failure_probability": 0.75,
+    "risk_level": "high",
+    "most_likely_failure": "FDF",
+    "failure_type_probs": {
+        "FDF": 0.65,
+        "FDC": 0.12,
+        "FP": 0.08,
+        "FTE": 0.10,
+        "FA": 0.05
+    },
+    "id": "sensor-001",
+    "id_produto": "M-1001"
+}
+```
+
+### 3. Processamento em Lote (🚧 Em Desenvolvimento)
+
+```python
+# Batch prediction (indisponível)
+response = requests.post(
+    "http://localhost:8000/predictions/predict/batch", 
+    json={"measurements": [data1, data2, data3]}
+)
+# Funcionalidade ainda não implementada
 ```
 
 ### 3. Exemplo com cURL
 
 ```bash
-# Teste rápido
+# Teste classificação binária
 curl -X POST "http://localhost:8000/predictions/binary-classification" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tipo": "M",
+    "temperatura_ar": 298.1,
+    "temperatura_processo": 308.6,
+    "umidade_relativa": 65.0,
+    "velocidade_rotacional": 1551.0,
+    "torque": 42.8,
+    "desgaste_da_ferramenta": 108.0
+  }'
+
+# Teste classificação multi-label
+curl -X POST "http://localhost:8000/predictions/predict" \
   -H "Content-Type: application/json" \
   -d '{
     "tipo": "M",
@@ -191,11 +244,18 @@ A interface web oferece:
 - Formulário interativo para entrada de dados
 - Predição em tempo real
 - Visualização de probabilidades
-- Histórico de predições
+- Gráficos de barras interativos
 
-### 🚧 Classificação Multi-label  
-- Mensagem de "Em construção"
-- Redirecionamento para classificação binária
+### ✅ Classificação Multi-label  
+- Identificação de tipos específicos de falhas
+- Probabilidades detalhadas por tipo
+- Nível de risco calculado
+- Visualização em gráficos e tabelas
+
+### 🚧 Processamento em Lote
+- Upload de CSV (indisponível)
+- Mensagem informativa sobre desenvolvimento
+- Redirecionamento para predições individuais
 
 ### 📊 Features
 - Validação de entrada em tempo real
@@ -210,8 +270,8 @@ A interface web oferece:
 | Método | Endpoint | Status | Descrição |
 |--------|----------|--------|-----------|
 | `POST` | `/predictions/binary-classification` | ✅ Funcional | Classificação binária |
-| `POST` | `/predictions/predict` | 🚧 Em construção | Multi-label (mockado) |
-| `POST` | `/predictions/predict/batch` | 🚧 Em construção | Predições em lote |
+| `POST` | `/predictions/predict` | ✅ Funcional | Classificação multi-label |
+| `POST` | `/predictions/predict/batch` | 🚧 Indisponível | Predições em lote |
 | `GET` | `/predictions/example` | ✅ Funcional | Exemplo de payload |
 
 ### 🤖 Modelos

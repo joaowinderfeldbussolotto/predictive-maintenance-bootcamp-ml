@@ -23,11 +23,13 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Endpoints principais
-- `/predictions/binary-classification`: Classificação binária (funcional)
-- `/predictions/predict`: Multi-label (em construção)
+- `/predictions/binary-classification`: Classificação binária (✅ funcional)
+- `/predictions/predict`: Classificação multi-label (✅ funcional)
+- `/predictions/predict/batch`: Predições em lote (🚧 indisponível)
 - `/health/`: Health check
-- `/models/info`: Info do modelo
+- `/models/info`: Informações do modelo
 
-## Observações
-- O endpoint de classificação binária está funcional e utiliza o modelo real.
-- Multi-label e batch estão em desenvolvimento e retornam mensagem de construção.
+## Status dos Modelos
+- **Classificação Binária**: ✅ Totalmente funcional com modelo XGBoost
+- **Classificação Multi-label**: ✅ Funcional com pipeline completo (preprocessamento + modelo)
+- **Processamento em Lote**: 🚧 Funcionalidade indisponível no momento

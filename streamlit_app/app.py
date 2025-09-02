@@ -70,7 +70,7 @@ col_btn1, col_btn2 = st.columns(2)
 with col_btn1:
     binary_pred_btn = st.button("🎯 Classificação Binária", type="primary", use_container_width=True)
 with col_btn2:
-    multi_pred_btn = st.button("🔍 Classificação Multi-Label", use_container_width=True)
+    multi_pred_btn = st.button("🔍 Classificação Multi-Label", type="secondary", use_container_width=True)
 
 # Preparar payload comum
 def get_payload():
@@ -125,78 +125,87 @@ if binary_pred_btn:
         with st.expander("📋 Resposta completa da API"):
             st.code(json.dumps(data, indent=2, ensure_ascii=False), language="json")
 
-# Processamento da Classificação Multi-Label (em construção)
+# Processamento da Classificação Multi-Label
 if multi_pred_btn:
     payload = get_payload()
 
-    with st.spinner("Verificando status do endpoint multi-label..."):
+    with st.spinner("Executando classificação multi-label..."):
         data, err = api_post("/predictions/predict", payload)
     
     if err:
         st.error(f"Erro na classificação multi-label: {err}")
     else:
-        # Verificar se é mensagem de construção
-        if "message" in data and "construção" in data["message"]:
-            st.warning(f"⚠️ {data.get('message', 'Endpoint em construção')}")
-            st.info(data.get('detail', 'Este endpoint está sendo desenvolvido.'))
-            
-            if "available_endpoint" in data:
-                st.markdown(f"**Endpoint disponível:** `{data['available_endpoint']}`")
-                st.markdown("👆 Use o botão **Classificação Binária** acima para predições funcionais!")
-                
-        else:
-            # Caso seja resposta normal (fallback)
-            st.success("🔍 Resultado da Classificação Multi-Label")
-            
-            left, right = st.columns([2, 3])
-            with left:
-                st.metric("Probabilidade de Falha", f"{data['machine_failure_probability']*100:.1f}%")
-                will_fail = "SIM" if data["will_fail"] else "NÃO"
-                st.metric("Vai Falhar", will_fail)
-                st.metric("Nível de Risco", data["risk_level"].title())
-                st.metric("Tipo de Falha Mais Provável", data["most_likely_failure"] or "-")
-                
-            with right:
-                probs = data.get("failure_type_probs", {})
-                if probs:
-                    df = pd.DataFrame({"failure_type": list(probs.keys()), "prob": list(probs.values())})
-                    st.bar_chart(df.set_index("failure_type"))
+        st.success("🔍 Resultado da Classificação Multi-Label")
         
-        # JSON completo sempre mostrado
+        col_result1, col_result2 = st.columns([1, 2])
+        
+        with col_result1:
+            # Resultado principal
+            will_fail = "SIM" if data["will_fail"] else "NÃO"
+            color = "red" if data["will_fail"] else "green"
+            st.markdown(f"### Vai Falhar: :{color}[{will_fail}]")
+            
+            # Métricas principais
+            st.metric("Probabilidade de Falha", f"{data['machine_failure_probability']*100:.1f}%")
+            st.metric("Nível de Risco", data["risk_level"].title())
+            most_likely = data.get("most_likely_failure")
+            if most_likely:
+                # Mapeamento dos códigos para nomes mais legíveis
+                failure_names = {
+                    "FDF": "Desgaste da Ferramenta",
+                    "FDC": "Dissipação de Calor", 
+                    "FP": "Falha de Potência",
+                    "FTE": "Tensão Excessiva",
+                    "FA": "Falha Aleatória"
+                }
+                readable_name = failure_names.get(most_likely, most_likely)
+                st.metric("Tipo Mais Provável", readable_name)
+            else:
+                st.metric("Tipo Mais Provável", "Nenhum")
+                
+        with col_result2:
+            # Gráfico das probabilidades por tipo de falha
+            probs = data.get("failure_type_probs", {})
+            if probs:
+                # Criar DataFrame com nomes mais legíveis
+                failure_names = {
+                    "FDF": "Desgaste Ferramenta",
+                    "FDC": "Dissipação Calor", 
+                    "FP": "Falha Potência",
+                    "FTE": "Tensão Excessiva",
+                    "FA": "Falha Aleatória"
+                }
+                
+                df_probs = pd.DataFrame([
+                    {"Tipo de Falha": failure_names.get(k, k), "Probabilidade": v}
+                    for k, v in probs.items()
+                ])
+                
+                st.subheader("Probabilidades por Tipo de Falha")
+                st.bar_chart(df_probs.set_index("Tipo de Falha"))
+                
+                # Tabela com valores exatos
+                with st.expander("📊 Valores Detalhados"):
+                    df_probs["Probabilidade (%)"] = (df_probs["Probabilidade"] * 100).round(2)
+                    st.dataframe(df_probs[["Tipo de Falha", "Probabilidade (%)"]], use_container_width=True)
+        
+        # JSON completo
         with st.expander("📋 Resposta completa da API"):
             st.code(json.dumps(data, indent=2, ensure_ascii=False), language="json")
 
 st.divider()
-st.subheader("📦 Batch Prediction (CSV) - Em Construção")
-st.caption("⚠️ Esta funcionalidade está em desenvolvimento. Use a classificação binária individual por enquanto.")
+st.subheader("📦 Batch Prediction (CSV)")
+st.caption("⚠️ Esta funcionalidade está indisponível no momento. Use as classificações individuais por enquanto.")
 
 uploaded = st.file_uploader("Upload CSV", type=["csv"], accept_multiple_files=False, disabled=True)
-if uploaded is not None:
-    try:
-        df = pd.read_csv(uploaded)
-        st.dataframe(df.head())
-        if st.button("Predict batch", disabled=True):
-            records: List[Dict[str, Any]] = df.to_dict(orient="records")
-            with st.spinner("Verificando endpoint batch..."):
-                data, err = api_post("/predictions/predict/batch", {"measurements": records})
-            if err:
-                st.error(f"Batch request failed: {err}")
-            else:
-                # Verificar se é mensagem de construção
-                if "message" in data and "construção" in data["message"]:
-                    st.warning(f"⚠️ {data.get('message', 'Endpoint em construção')}")
-                    st.info(data.get('detail', 'Este endpoint está sendo desenvolvido.'))
-                    
-                    if "available_endpoint" in data:
-                        st.markdown(f"**Endpoint disponível:** `{data['available_endpoint']}`")
-                        
-                else:
-                    st.success("Batch prediction completed")
-                    st.json(data.get("summary", {}))
-                    # Show first 10 predictions
-                    preds = data.get("predictions", [])
-                    if preds:
-                        dfp = pd.DataFrame(preds)
-                        st.dataframe(dfp.head(10))
-    except Exception as e:
-        st.error(f"Failed to parse CSV: {e}")
+batch_btn = st.button("🚀 Processar Lote", disabled=True)
+
+if uploaded is not None or batch_btn:
+    st.info("🔧 Funcionalidade em desenvolvimento. Em breve estará disponível!")
+    st.markdown("""
+    **Recursos planejados:**
+    - Upload de arquivo CSV com múltiplas medições
+    - Processamento em lote das predições
+    - Download dos resultados em formato CSV
+    - Resumo estatístico das predições
+    """)
