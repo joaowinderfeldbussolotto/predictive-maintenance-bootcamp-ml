@@ -5,7 +5,6 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.35.0-red)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5.2-orange)
-![XGBoost](https://img.shields.io/badge/XGBoost-3.0.4-yellow)
 
 **Sistema Inteligente de Manutenção Preditiva para Máquinas Industriais**
 
@@ -23,6 +22,8 @@ Desenvolver um sistema inteligente de manutenção preditiva que:
 - ✅ **Containerização** com Docker para deploy fácil
 
 ## 🏗️ Arquitetura do Sistema
+
+![Arquitetura do Sistema](assets/solution_arch.excalidraw.png)
 
 ```
 predictive-maintenance-bootcamp-ml/
@@ -47,6 +48,10 @@ predictive-maintenance-bootcamp-ml/
 │   └── requirements.txt         # Dependências
 ├── 🐳 docker-compose.yml        # Orquestração de containers
 ├── 📝 logs/                     # Logs da aplicação
+├── 📓 notebook/                 # Notebooks Jupyter
+│   ├── projeto_final_bootcam_CD_ML_binary_classification.ipynb      
+│   ├── projeto_final_bootcam_CD_ML_multilabel_classification.ipynb  
+│   └── projeto_final_bootcam_CD_ML_model_processing.ipynb           
 └── 📖 README.md                 # Documentação
 ```
 
