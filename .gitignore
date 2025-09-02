@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # ML and Data Science specific
-*.pkl
+# *.pkl
 *.joblib
 *.h5
 *.hdf5
